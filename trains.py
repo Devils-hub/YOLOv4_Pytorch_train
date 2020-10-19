@@ -3,11 +3,14 @@ import torch
 import torch.nn as nn
 import numpy as np
 import random
+import cv2
+import glob
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo4 import YoloBody
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo_training import YOLOLoss, Generator
-from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.utils.dataloader import yolo_dataset_collate, YoloDataset
+# from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.utils.dataloader import yolo_dataset_collate, YoloDataset
+from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.dataloader import yolo_dataset_collate, YoloDataset
 import argparse
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
@@ -24,6 +27,8 @@ def args_parse():
     parser.add_argument('-lr', default=1e-3, type=float, help='learning rate')
     parser.add_argument('-batch_size', default=16, type=int, help='train data batch size')
     parser.add_argument('-epochs', default=50, type=int, help='train epoch size')
+    parser.add_argument('--beta', default=1.0, type=float, help='hyperparameter beta')
+    parser.add_argument('--cutmix_prob', default=0.5, type=float, help='cutmix probability')
     args = parser.parse_args()
     return args
 
@@ -91,10 +96,6 @@ def train():
     val_num = int(len(lines) * val_slits)
     train_num = len(lines) - val_num
 
-    # witer = SummaryWriter(log_dir="./log", flush_secs=60)  # 进行训练可视化
-    # graph_inputs = torch.from_numpy(np.random.rand(1, 3, input_shape[1], input_shape[0])).type(torch.FloatTensor).cuda()
-    # witer.add_graph(model, graph_inputs)
-
     batch_size = args.batch_size
     optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=5e-4)  # 优化器
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5, eta_min=1e-5)  # 学习率余弦退火衰减
@@ -132,6 +133,7 @@ def train():
                 for i in range(3):
                     loss_item = yolo_losses[i](outputs[i], targets)
                     losses.append(loss_item[0])
+
                 loss = sum(losses)
                 loss.backward()
                 optimizer.step()
@@ -172,6 +174,8 @@ def train():
                 pbar.set_postfix(dicts)  # 进度条右提示
                 pbar.update(1)
 
+        # 将loss写入tensorboard，每个世代保存一次
+        writer.add_scalar('Val_loss', val_loss / (val_epoch_size + 1), epoch)
         print('Finish Validation')
         print('Epoch:' + str(epoch + 1) + '/' + str(epochs))
         print(
