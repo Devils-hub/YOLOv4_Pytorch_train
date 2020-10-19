@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo4 import YoloBody
-from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo_training import YOLOLoss, Generator
+from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo_training import YOLOLoss
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.dataloader import yolo_dataset_collate, YoloDataset
 import argparse
 from tqdm import tqdm
@@ -101,8 +101,8 @@ def train():
     val = DataLoader(val_dataset, batch_size=batch_size, num_workers=4, pin_memory=True,
                          drop_last=True, collate_fn=yolo_dataset_collate)
 
-    train_epoch_size = max(1, train_num//batch_size)
-    val_epoch_size = val_num//batch_size
+    train_epoch_size = train_num // batch_size
+    val_epoch_size = val_num // batch_size
 
     for param in model.backbone.parameters():  # 冻结部分网络
         param.requires_grad = False
