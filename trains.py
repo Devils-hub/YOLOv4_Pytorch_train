@@ -1,15 +1,9 @@
 import time
 import torch
-import torch.nn as nn
 import numpy as np
-import random
-import cv2
-import glob
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo4 import YoloBody
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo_training import YOLOLoss, Generator
-# from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.utils.dataloader import yolo_dataset_collate, YoloDataset
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.dataloader import yolo_dataset_collate, YoloDataset
 import argparse
 from tqdm import tqdm
