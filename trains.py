@@ -14,15 +14,13 @@ device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 def args_parse():
     parser = argparse.ArgumentParser(description="训练的参数")
     parser.add_argument('-input_size', default=(416, 416), type=int, help='input image size', dest='input_size')
-    parser.add_argument('-anchors', default="./model_data/yolo_anchors.txt", type=str, help='anchor file')
+    parser.add_argument('-anchors', default="./model_data/anchors.txt", type=str, help='anchor file')
     parser.add_argument('-classes', default="./model_data/class_name.txt", type=str, help='classes name')
     parser.add_argument('-annotation', default="./2007_train.txt", type=str, help='annotation file')
     parser.add_argument('-model', default="./model_data/yolo4_voc_weights.pth", type=str, help='model file')
     parser.add_argument('-lr', default=1e-3, type=float, help='learning rate')
     parser.add_argument('-batch_size', default=16, type=int, help='train data batch size')
     parser.add_argument('-epochs', default=50, type=int, help='train epoch size')
-    parser.add_argument('--beta', default=1.0, type=float, help='hyperparameter beta')
-    parser.add_argument('--cutmix_prob', default=0.5, type=float, help='cutmix probability')
     args = parser.parse_args()
     return args
 
@@ -56,11 +54,11 @@ def train():
     anchors = get_anchors(args.anchors)  # get anchors
     num_classes = len(get_classes(args.classes))  # get classes
     # 绘制模型
-    model = YoloBody(len(anchors[0]), num_classes)
+    models = YoloBody(len(anchors[0]), num_classes)
 
     # 使用预训练模型，如果显卡不够大的话可以使用预训练模型来微调
     print("Load pretrained model into state dict...")
-    model_list = model.state_dict()
+    model_list = models.state_dict()
     pretrained_dict = torch.load(args.model, map_location="cuda:0")  # Load pretrained model
 
     pretrained_dicts = {}
@@ -70,17 +68,17 @@ def train():
             pretrained_dicts[k] = v
 
     model_list.update(pretrained_dicts)
-    model.load_state_dict(model_list)
+    models.load_state_dict(model_list)
     print("Finished!")
 
-    model.train()
-    model.to(device)
+    models.train()
+    model = models.to(device)
 
     yolo_losses = []  # creat loss function
     input_shape = args.input_size
     for i in range(3):
         yolo_losses.append(YOLOLoss(np.reshape(anchors, [-1, 2]), num_classes,
-                                    (input_shape[1], input_shape[0]), label_smooth=False))
+                                    (input_shape[1], input_shape[0]), label_smooth=0.1, cuda=True))
 
     val_slits = 0.1  # 训练集验证集分配
     lines = parse_lines(args.annotation)
@@ -104,10 +102,12 @@ def train():
     train_epoch_size = train_num // batch_size
     val_epoch_size = val_num // batch_size
 
-    for param in model.backbone.parameters():  # 冻结部分网络
+    for param in models.backbone.parameters():  # 冻结部分网络
         param.requires_grad = False
 
+    writer = SummaryWriter(log_dir="./loges", flush_secs=60)  # 进行训练可视化
     epochs = args.epochs
+    # cuda = True
     for epoch in range(0, epochs):
         total_loss = 0
         val_loss = 0
@@ -139,7 +139,6 @@ def train():
                 pbar.set_postfix(dicts)  # 进度条右提示
                 pbar.update(1)
 
-                writer = SummaryWriter(log_dir="./loges", flush_secs=60)  # 进行训练可视化
                 # 将loss写入tensorboard，每一步都写
                 writer.add_scalar('Train_loss', loss, (epoch * train_epoch_size + i))
 
@@ -170,14 +169,13 @@ def train():
 
         # 将loss写入tensorboard，每个世代保存一次
         writer.add_scalar('Val_loss', val_loss / (val_epoch_size + 1), epoch)
+        writer.close()
         print('Finish Validation')
         print('Epoch:' + str(epoch + 1) + '/' + str(epochs))
-        print(
-            'Total Loss: %.4f || Val Loss: %.4f ' % (
-            total_loss / (train_epoch_size + 1), val_loss / (val_epoch_size + 1)))
+        print('Total Loss: %.4f || Val Loss: %.4f ' % (total_loss / (train_epoch_size + 1), val_loss / (val_epoch_size + 1)))
 
         print('Saving state, iter:', str(epoch + 1))
-        torch.save(model.state_dict(), 'log/Epoch%d-Total_Loss%.4f-Val_Loss%.4f.pth' % ((epoch + 1), total_loss / (train_epoch_size + 1), val_loss / (val_epoch_size + 1)))
+        torch.save(models.state_dict(), 'logs/Epoch%d-Total_Loss%.4f-Val_Loss%.4f.pth' % ((epoch + 1), total_loss / (train_epoch_size + 1), val_loss / (val_epoch_size + 1)))
         lr_scheduler.step()
 
 
