@@ -88,10 +88,10 @@ def train():
     val_num = int(len(lines) * val_slits)
     train_num = len(lines) - val_num
 
-    batch_size = args.batch_size
     optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=5e-4)  # 优化器
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5, eta_min=1e-5)  # 学习率余弦退火衰减
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9, last_epoch=-1)
 
+    batch_size = args.batch_size
     train_dataset = YoloDataset(lines[:train_num], (input_shape[0], input_shape[1]), mosaic=True)  # Load dataset
     val_dataset = YoloDataset(lines[train_num:], (input_shape[0], input_shape[1]), mosaic=False)
     train = DataLoader(train_dataset, batch_size=batch_size, num_workers=4, pin_memory=True,
@@ -105,9 +105,8 @@ def train():
     for param in models.backbone.parameters():  # 冻结部分网络
         param.requires_grad = False
 
-    writer = SummaryWriter(log_dir="./loges", flush_secs=60)  # 进行训练可视化
+    writer = SummaryWriter(log_dir="./log", flush_secs=60)  # 进行训练可视化
     epochs = args.epochs
-    # cuda = True
     for epoch in range(0, epochs):
         total_loss = 0
         val_loss = 0
