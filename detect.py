@@ -6,6 +6,7 @@ import time
 import torch
 import torch.nn as nn
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo4 import YoloBody
+from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.trains import get_classes, get_anchors
 import torch.backends.cudnn as cudnn
 from PIL import Image, ImageFont, ImageDraw
 from torch.autograd import Variable
@@ -13,37 +14,21 @@ from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.utils.utils import non
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # 加快模型训练的效率
 
 
-def load_class_name(path):
-    classes_path = os.path.expanduser(path)
-    with open(classes_path) as f:
-        class_names = f.readlines()
-    class_names = [c.strip() for c in class_names]
-    return class_names
-
-
-def get_anchors(anchors_path):
-    anchors_path = os.path.expanduser(anchors_path)
-    with open(anchors_path) as f:
-        anchors = f.readline()
-    anchors = [float(x) for x in anchors.split(',')]
-    return np.array(anchors).reshape([-1, 3, 2])[::-1, :, :]
-
-
 class YOLO(object):
     def __init__(self):
         super(YOLO, self).__init__()
 
-        self.model_path = 'logs/Epoch37-Total_Loss7.1631-Val_Loss7.8896.pth'
-        # self.model_path = 'model_data/yolo4_voc_weights.pth'
+        self.model_path = 'logs/Epoch29-Total_Loss10.1298-Val_Loss9.1452.pth'
+        # self.model_path = 'model_data/Epoch37-Total_Loss7.1631-Val_Loss7.8896.pth'
         self.classes_path = './model_data/class_name.txt'
         # self.classes_path = './model_data/voc_classes.txt'
-        self.anchors_path = 'model_data/yolo_anchors.txt'
+        self.anchors_path = 'model_data/anchors.txt'
         self.model_image_size = [416, 416, 3]
-        self.confidence = 0.5
-        self.iou = 0.3
+        self.confidence = 0.2
+        self.iou = 0.2
         self.cuda = True
 
-        self.class_names = load_class_name(self.classes_path)
+        self.class_names = get_classes(self.classes_path)
         self.anchors = get_anchors(self.anchors_path)
         self.generate()
 
@@ -51,7 +36,7 @@ class YOLO(object):
 
         net = YoloBody(len(self.anchors[0]), len(self.class_names)).eval()
         print('Loading weights into state dict...')
-        net.load_state_dict(torch.load(self.model_path, map_location="cuda:0"))
+        net.load_state_dict(torch.load(self.model_path, map_location="cuda:0"), False)
 
         if self.cuda:
             os.environ["CUDA_VISIBLE_DEVICES"] = '0'
