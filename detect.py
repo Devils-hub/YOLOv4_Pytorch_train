@@ -5,7 +5,7 @@ import torch
 import argparse
 import colorsys
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFont
 import torch.nn as nn
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.nets.yolo4 import YoloBody
 from Pytorch.photo_detection.YOLO_v4.yolov4_pytorch_train.trains import get_classes, get_anchors
@@ -78,10 +78,7 @@ def detect_image(image):
 
     with torch.no_grad():
         images = torch.from_numpy(images)
-        cuda = True
-        if cuda:
-            images = images.cuda()  # 调用cuda
-            net = net  # 模型
+        images = images.cuda()  # 调用cuda
         outputs = net(images)  # 得到模型的预测结果
 
     output_list = []
@@ -109,9 +106,9 @@ def detect_image(image):
     boxes = yolo_correct_boxes(top_ymin, top_xmin, top_ymax, top_xmax,
                                np.array([model_image_size[0], model_image_size[1]]), image_shape)
 
-    # font = ImageFont.truetype(font='model_data/simhei.ttf',
-    #                           size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
-    #
+    font = ImageFont.truetype(font='model_data/simhei.ttf',
+                              size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
+
     thickness = (np.shape(image)[0] + np.shape(image)[1]) // model_image_size[0]
 
     for i, c in enumerate(top_label):  # 最后的类别
